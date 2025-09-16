@@ -1,6 +1,6 @@
 openai==1.64.0
+pandas==2.2.3
 keyboard
 psutil
 dotenv
 tabulate
-pandas==2.1.4
