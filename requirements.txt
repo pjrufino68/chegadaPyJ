@@ -3,3 +3,4 @@ keyboard
 psutil
 dotenv
 tabulate
+pandas
