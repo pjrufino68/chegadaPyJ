@@ -1,5 +1,6 @@
-openai==1.64.0
-pandas==2.2.3
+streamlit
+pandas
+numpy
 keyboard
 psutil
 dotenv
