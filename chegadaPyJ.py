@@ -68,11 +68,11 @@ placeholder_mapa = st.empty()
 
 ontem = datetime.now() - timedelta(days=1)
 amanha = datetime.now() + timedelta(days=1)
-arquivo_ontem_csv = 'chegada_' + ontem.strftime('%Y-%m-%d') + '.csv'
-arquivo_amanha_csv = 'chegada_' + amanha.strftime('%Y-%m-%d') + '.csv'
+arquivo_ontem_csv = 'chegada_' + ontem.strftime('%Y-%m-%d') + '.xls'
+arquivo_amanha_csv = 'chegada_' + amanha.strftime('%Y-%m-%d') + '.xls'
 
-nome_arquivo_csv = 'chegada_' + datetime.now().strftime('%Y-%m-%d') + '.csv'
-arquivo_csv = st.file_uploader("Carregar CSV de Chegadas (" + nome_arquivo_csv + ")", type=["csv"])
+nome_arquivo_csv = 'chegada_' + datetime.now().strftime('%Y-%m-%d') + '.xls'
+arquivo_csv = st.file_uploader("Carregar XLS de Chegadas (" + nome_arquivo_csv + ")", type=['xls', 'xlsx'])
 
 def formatar_diferenca(diferenca):
     prefixo = 'Atraso de '
@@ -89,8 +89,46 @@ def formatar_diferencaMenor(diferencaMenor):
     return f'<font color="green">{chegada}</font>'
 
 if (arquivo_csv) and ((nome_arquivo_csv == arquivo_csv.name) or (arquivo_ontem_csv == arquivo_csv.name) or (arquivo_amanha_csv == arquivo_csv.name)):
-    df_csv = pd.read_csv(arquivo_csv)
+    df_csv = pd.read_excel(arquivo_csv)
+
+    df_csv = df_csv.loc[:, ~df_csv.isin([' : ']).all()]
+    df_csv = df_csv.dropna(axis=1, how='all')
+    df_csv = df_csv.dropna(axis=0, how='all')
+
+    primeira_coluna = df_csv.columns[0]
+    df_csv = df_csv.dropna(subset=[primeira_coluna])
+
+    df_csv = df_csv[~df_csv[primeira_coluna].astype(str).str.strip().str.lower().isin(['veículo'])]
+    df_csv = df_csv[~df_csv[primeira_coluna].astype(str).str.strip().str.lower().isin(['quantidade de horários'])]
+
+    df_csv = df_csv.drop(df_csv.columns[[1, 2, 6, 7, 8, 9, 10, 11, 12]], axis=1)
+    df_csv = df_csv.drop(df_csv.columns[[2]], axis=1)
+
+    df_csv = df_csv[df_csv[df_csv.columns[1]].notna()]
+
+    df_csv[df_csv.columns[0]] = "30" + df_csv[df_csv.columns[0]].astype(str)
+
+    segunda_coluna = df_csv.columns[1]
+
+    df_csv[segunda_coluna] = pd.to_datetime(df_csv[segunda_coluna], format="%Y-%m-%d %H:%M")
+    df_csv[segunda_coluna] = df_csv[segunda_coluna].dt.strftime("%Y-%d-%m %H:%M")
     print (df_csv)
+
+    df_csv[segunda_coluna] = pd.to_datetime(df_csv[segunda_coluna])
+
+    # Definir data final e data base extraída da própria coluna (linha 0, por exemplo)
+    data_a_somar = pd.to_datetime("2025-09-15").date()
+    base_date = df_csv[segunda_coluna].iloc[0].date()  # ← aqui a substituição dinâmica
+
+    # Calcular diferença e somar a todos os valores da coluna
+    delta = data_a_somar - base_date
+    df_csv[segunda_coluna] = df_csv[segunda_coluna] + delta
+    
+    df_csv[segunda_coluna] = df_csv[segunda_coluna].dt.strftime("%Y-%m-%d %H:%M")
+
+    df_csv.columns = ['veiculo', 'horario', 'motorista', 'linha'][:len(df_csv.columns)]
+
+    #print (df_csv)
     i = 0
     while True:
         try:
@@ -106,7 +144,7 @@ if (arquivo_csv) and ((nome_arquivo_csv == arquivo_csv.name) or (arquivo_ontem_c
                     veiculos_validos = [v for v in veiculos if v is not None]
 
                     df = pd.DataFrame(veiculos_validos)
-                    df = df.drop(['id_migracao_trajeto', 'hodometro', 'velocidade', 'direcao', 'trajeto'], axis=1)
+                    df = df.drop(['id_migracao_trajeto', 'hodometro', 'direcao', 'trajeto'], axis=1)
 
                     if 'dataHora' in df.columns:
                         df['dataHora'] = pd.to_datetime(df['dataHora'], unit='ms', utc=True)
@@ -133,7 +171,7 @@ if (arquivo_csv) and ((nome_arquivo_csv == arquivo_csv.name) or (arquivo_ontem_c
 
                     fora = (df_merged['sentido'] == 'fora').sum()
 
-                    df_merged = df_merged.drop(columns=["sentido", "linha", "latitude", "longitude"])
+                    df_merged = df_merged.drop(columns=["sentido", "latitude", "longitude"]).rename(columns={"horario": "horachegada"})
                     df_merged['horachegada'] = pd.to_datetime(df_merged['horachegada'])
                     
                     hora_atual = datetime.now()
@@ -145,6 +183,14 @@ if (arquivo_csv) and ((nome_arquivo_csv == arquivo_csv.name) or (arquivo_ontem_c
                     df_merged['horachegada'] = df_merged['horachegada'].dt.strftime('%Y-%m-%d %H:%M')
 
                     df_final = df_merged.sort_values("horachegada")
+
+                    df_final["horachegada"] = pd.to_datetime(df_final["horachegada"], format="%Y-%m-%d %H:%M")
+                    limite = hora_atual - timedelta(hours=3)
+                    df_final = df_final[df_final["horachegada"] >= limite]
+
+                    df_final['horachegada'] = df_final['horachegada'].dt.strftime('%Y-%m-%d %H:%M')
+
+                    fora = df_final.shape[0]
 
                     with placeholder_tabela.container():
                         st.markdown('<h3>📡 chegadaPyJ / Chegada de veículos em ' + arquivo_csv.name[8:8+10] + '</h3>', unsafe_allow_html=True)
