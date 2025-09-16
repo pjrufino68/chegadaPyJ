@@ -179,7 +179,7 @@ if (arquivo_csv) and ((nome_arquivo_csv == arquivo_csv.name) or (arquivo_ontem_c
                     df_merged['horaatual'] = hora_atual
                     df_merged["diferenca"] = np.where((df_merged['horaatual'] > df_merged['horachegada']), df_merged['horaatual'] - df_merged['horachegada'], df_merged['horachegada'] - df_merged['horaatual'])
                     df_merged['chegada'] = np.where((df_merged['horaatual'] > df_merged['horachegada']), df_merged['diferenca'].apply(formatar_diferenca), df_merged['diferenca'].apply(formatar_diferencaMenor))
-                    df_merged = df_merged.drop(columns=["diferenca", "horaatual"])
+                    #df_merged = df_merged.drop(columns=["diferenca", "horaatual"])
                     df_merged['horachegada'] = df_merged['horachegada'].dt.strftime('%Y-%m-%d %H:%M')
 
                     df_final = df_merged.sort_values("horachegada")
