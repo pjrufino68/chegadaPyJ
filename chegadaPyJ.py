@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 import time
 from datetime import datetime, timedelta
+import pytz
+#from zoneinfo import ZoneInfo
 
 import os
 import psutil
@@ -74,6 +76,8 @@ arquivo_amanha_csv = 'chegada_' + amanha.strftime('%Y-%m-%d') + '.xls'
 nome_arquivo_csv = 'chegada_' + datetime.now().strftime('%Y-%m-%d') + '.xls'
 arquivo_csv = st.file_uploader("Carregar XLS de Chegadas (" + nome_arquivo_csv + ")", type=['xls', 'xlsx'])
 
+fuso_horario = pytz.timezone('America/Sao_Paulo')
+
 def formatar_diferenca(diferenca):
     prefixo = 'Atraso de '
     horas = abs(int(diferenca.total_seconds() // 3600))
@@ -89,6 +93,7 @@ def formatar_diferencaMenor(diferencaMenor):
     return f'<font color="green">{chegada}</font>'
 
 if (arquivo_csv) and ((nome_arquivo_csv == arquivo_csv.name) or (arquivo_ontem_csv == arquivo_csv.name) or (arquivo_amanha_csv == arquivo_csv.name)):
+    datachegada = arquivo_csv.name[8:18]
     df_csv = pd.read_excel(arquivo_csv)
 
     df_csv = df_csv.loc[:, ~df_csv.isin([' : ']).all()]
@@ -110,25 +115,20 @@ if (arquivo_csv) and ((nome_arquivo_csv == arquivo_csv.name) or (arquivo_ontem_c
 
     segunda_coluna = df_csv.columns[1]
 
-    df_csv[segunda_coluna] = pd.to_datetime(df_csv[segunda_coluna], format="%Y-%m-%d %H:%M")
-    df_csv[segunda_coluna] = df_csv[segunda_coluna].dt.strftime("%Y-%d-%m %H:%M")
-    print (df_csv)
+    df_csv[segunda_coluna] = pd.to_datetime((df_csv[segunda_coluna]), format="%Y-%m-%d %H:%M")
+    df_csv[segunda_coluna] = df_csv[segunda_coluna].dt.strftime('%Y-%d-%m %H:%M')
+    df_csv[segunda_coluna] = pd.to_datetime((df_csv[segunda_coluna]), format="%Y-%m-%d %H:%M")
 
-    df_csv[segunda_coluna] = pd.to_datetime(df_csv[segunda_coluna])
-
-    # Definir data final e data base extraída da própria coluna (linha 0, por exemplo)
-    data_a_somar = pd.to_datetime("2025-09-15").date()
+    # Definir data final e data base extraída5 da própria coluna (linha 0, por exemplo)
+    data_a_somar = pd.to_datetime(datachegada).date()
     base_date = df_csv[segunda_coluna].iloc[0].date()  # ← aqui a substituição dinâmica
 
     # Calcular diferença e somar a todos os valores da coluna
     delta = data_a_somar - base_date
     df_csv[segunda_coluna] = df_csv[segunda_coluna] + delta
-    
-    df_csv[segunda_coluna] = df_csv[segunda_coluna].dt.strftime("%Y-%m-%d %H:%M")
 
     df_csv.columns = ['veiculo', 'horario', 'motorista', 'linha'][:len(df_csv.columns)]
 
-    #print (df_csv)
     i = 0
     while True:
         try:
@@ -172,20 +172,24 @@ if (arquivo_csv) and ((nome_arquivo_csv == arquivo_csv.name) or (arquivo_ontem_c
                     fora = (df_merged['sentido'] == 'fora').sum()
 
                     df_merged = df_merged.drop(columns=["sentido", "latitude", "longitude"]).rename(columns={"horario": "horachegada"})
-                    df_merged['horachegada'] = pd.to_datetime(df_merged['horachegada'])
-                    
-                    hora_atual = datetime.now()
+                    #df_merged['horachegada'] = pd.to_datetime(df_merged['horachegada'])
+                    df_merged['horachegada'] = df_merged['horachegada'].dt.tz_localize(fuso_horario)
 
+                    hora_atual = datetime.now(fuso_horario)
+                    
                     df_merged['horaatual'] = hora_atual
+
                     df_merged["diferenca"] = np.where((df_merged['horaatual'] > df_merged['horachegada']), df_merged['horaatual'] - df_merged['horachegada'], df_merged['horachegada'] - df_merged['horaatual'])
                     df_merged['chegada'] = np.where((df_merged['horaatual'] > df_merged['horachegada']), df_merged['diferenca'].apply(formatar_diferenca), df_merged['diferenca'].apply(formatar_diferencaMenor))
-                    #df_merged = df_merged.drop(columns=["diferenca", "horaatual"])
+                    df_merged = df_merged.drop(columns=["diferenca", "horaatual"])
                     df_merged['horachegada'] = df_merged['horachegada'].dt.strftime('%Y-%m-%d %H:%M')
 
                     df_final = df_merged.sort_values("horachegada")
 
                     df_final["horachegada"] = pd.to_datetime(df_final["horachegada"], format="%Y-%m-%d %H:%M")
-                    limite = hora_atual - timedelta(hours=3)
+                    
+                    limite = hora_atual.replace(tzinfo=None) - timedelta(hours=3)
+
                     df_final = df_final[df_final["horachegada"] >= limite]
 
                     df_final['horachegada'] = df_final['horachegada'].dt.strftime('%Y-%m-%d %H:%M')
