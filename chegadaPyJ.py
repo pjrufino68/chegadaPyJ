@@ -188,7 +188,7 @@ if (arquivo_csv) and ((nome_arquivo_csv == arquivo_csv.name) or (arquivo_ontem_c
 
                     df_final["horachegada"] = pd.to_datetime(df_final["horachegada"], format="%Y-%m-%d %H:%M")
                     
-                    limite = hora_atual.replace(tzinfo=None) - timedelta(hours=3)
+                    limite = hora_atual.replace(tzinfo=None) - timedelta(hours=1)
 
                     df_final = df_final[df_final["horachegada"] >= limite]
 
