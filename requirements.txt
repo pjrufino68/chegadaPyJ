@@ -6,3 +6,4 @@ keyboard
 psutil
 dotenv
 tabulate
+pdfplumber
