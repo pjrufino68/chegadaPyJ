@@ -169,6 +169,8 @@ if (arquivo_csv) and ((nome_arquivo_csv == arquivo_csv.name) or (arquivo_ontem_c
                     df_csv['veiculo'] = df_csv['veiculo'].astype(str).str.strip()
                     df_merged = pd.merge(df_view, df_csv, on='veiculo', how='outer')
 
+                    df_merged['veloc'] = df_merged['velocidade']
+
                     df_merged["local"] = df_merged.apply(
                     lambda row: f"[Mapa](https://www.google.com/maps?q={row['latitude']},{row['longitude']})", axis=1
                     )
@@ -187,7 +189,9 @@ if (arquivo_csv) and ((nome_arquivo_csv == arquivo_csv.name) or (arquivo_ontem_c
 
                     df_merged["diferenca"] = np.where((df_merged['horaatual'] > df_merged['horachegada']), df_merged['horaatual'] - df_merged['horachegada'], df_merged['horachegada'] - df_merged['horaatual'])
                     df_merged['chegada'] = np.where((df_merged['horaatual'] > df_merged['horachegada']), df_merged['diferenca'].apply(formatar_diferenca), df_merged['diferenca'].apply(formatar_diferencaMenor))
-                    df_merged = df_merged.drop(columns=["diferenca", "horaatual"])
+
+                    df_merged = df_merged.drop(columns=["velocidade", "diferenca", "horaatual"])
+                    df_merged = df_merged.rename(columns={"veloc": "velocidade"})
                     df_merged['horachegada'] = df_merged['horachegada'].dt.strftime('%Y-%m-%d %H:%M')
 
                     df_final = df_merged.sort_values("horachegada")
@@ -198,7 +202,7 @@ if (arquivo_csv) and ((nome_arquivo_csv == arquivo_csv.name) or (arquivo_ontem_c
 
                     df_final = df_final[df_final["horachegada"] >= limite]
 
-                    df_final['horachegada'] = df_final['horachegada'].dt.strftime('%Y-%m-%d %H:%M')
+                    df_final['horachegada'] = df_final['horachegada'].dt.strftime('%H:%M')
 
                     fora = df_final.shape[0]
 
